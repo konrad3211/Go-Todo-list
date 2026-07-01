@@ -20,7 +20,9 @@ import (
 
 type Todo struct {
 	//dajemy to bson poniewaz mongo zapisuje swoje dane w bson. binary json
-	//dodajemy to omitempty bo bez tego id byloby 00000, a z tym bedzie unikalne z mongo
+	//dodajemy to omitempty bo bez tego id byloby 00000, a z tym bedzie unikalne z mongo.
+	//Dzieje sie tak dlatego ze omitempty mowi, ze jezeli ta wartosc jest zerowa to pomin te pole, wiec wysylamy do mongo obiket bez id, wiec mongo samo dodaje sobie to id.
+	//tutaj sa dwa tagi json i bson. json jest dla reacta, bson jest dla mongo. App wie, ze ma czytac json, mongo czytaj bson, tutaj nie ma problemu, bilbioteki wiedza co maja czytac.
 	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	Completed bool               `json:"completed"`
 	Body      string             `json:"body"`
@@ -49,7 +51,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//? czyli tutaj po control + c program rozlaczy sie z mongodb, czyli gdy wylaczymy serwer. Teoretycznie mongo samo sie z siebie rozlaczy, ale to dobra praktyka.
+	//? tutaj po control + c program rozlaczy sie z mongodb, czyli gdy wylaczymy serwer. Teoretycznie mongo samo sie z siebie rozlaczy, ale to dobra praktyka.
 	defer client.Disconnect(context.Background())
 
 	//Ping to metoda typu mongo.Client, ktora sprawdza czy jest mozliwe polaczenie z mongo.
@@ -59,11 +61,14 @@ func main() {
 	}
 	fmt.Println("Connected to MONGODB")
 
+	//! tutaj trzeba zaznaczyc, ze golang_db to nazwa bazy danych, ktora nadalem w .env po .net/
 	collection = client.Database("golang_db").Collection("todos")
 
+	//startujemy serwer, cos jak express
 	app := fiber.New()
 
 	app.Get("/api/todos", getTodos)
+	app.Get("/api/todos/:id", getTodo)
 	app.Post("/api/todos", createTodo)
 	app.Patch("/api/todos/:id", updateTodo)
 	app.Delete("/api/todos/:id", deleteTodo)
@@ -72,7 +77,7 @@ func main() {
 	if port == "" {
 		port = "4000"
 	}
-
+	//jak wystapi blad to log.Fatal zatrzymuje program i wyswietla komunikat
 	log.Fatal(app.Listen("0.0.0.0:" + port))
 }
 
@@ -87,12 +92,14 @@ func getTodos(c *fiber.Ctx) error {
 	}
 
 	//! to zamyka cursor po wykonaniu funkcji
+	//? musi to byc w tym miejscu, go zapamietuje, ze jak kod sie wykona to go zamyka. Jakby byl na samym dole, a err sie pojawi gdzies w srodku to nie dojdzie do zamkniecia. wiec sprawdzamy czy jest tutaj err jak nie ma to przechodzimy do tej linijki.
 	defer cursor.Close(context.Background())
 
 	//Next ->"Przejdź do następnego dokumentu. Jeżeli istnieje, zwróć true." Jezeli juz nie ma dokumentow to zwraca false
 	for cursor.Next(context.Background()) {
+		//tworze pusta stukture Todo o nazwie "todo"
 		var todo Todo
-		//dekodujemy dokument z mongo do naszej struktury
+		//dekodujemy dokument z mongo do naszej struktury i wypelniamy zmienna todo tym dokumentem
 		if err := cursor.Decode(&todo); err != nil {
 			return err
 		}
@@ -101,6 +108,28 @@ func getTodos(c *fiber.Ctx) error {
 		todos = append(todos, todo)
 	}
 	return c.JSON(todos)
+}
+
+func getTodo(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objectID, err := primitive.ObjectIDFromHex(id)
+
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid todo ID"})
+	}
+
+	filter := bson.M{"_id": objectID}
+
+	var todo Todo
+
+	err = collection.FindOne(context.Background(), filter).Decode(&todo)
+
+	if err != nil {
+		c.Status(404).JSON(fiber.Map{"error": "Todo not found"})
+	}
+
+	return c.JSON(todo)
+
 }
 
 func createTodo(c *fiber.Ctx) error {
