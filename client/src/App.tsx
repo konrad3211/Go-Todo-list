@@ -13,7 +13,7 @@ import TodoList from "./components/TodoList";
 export const BASE_URL =
   import.meta.env.MODE === "development"
     ? "http://localhost:4000/api/todos"
-    : "/api";
+    : "/api/todos";
 
 const App = () => {
   const headingColor = useColorModeValue("gray.900", "whiteAlpha.900");
