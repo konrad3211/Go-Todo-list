@@ -8,7 +8,7 @@ The project focuses on building and consuming a REST API, working with MongoDB f
 
 ## Live Demo
 
-**Live application:** https://todo.konradpatla.pl
+**[Live demo → todo.konradpatla.pl](https://todo.konradpatla.pl/)**
 
 ## Features
 
