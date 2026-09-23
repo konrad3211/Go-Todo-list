@@ -6,6 +6,10 @@ A full-stack todo application with a backend written in **Go** using **Fiber** a
 
 The project focuses on building and consuming a REST API, working with MongoDB from Go, and connecting a modern React frontend to a non-JavaScript backend.
 
+## Live Demo
+
+**Live application:** https://todo.konradpatla.pl
+
 ## Features
 
 - Create new todos.
